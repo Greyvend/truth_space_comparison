@@ -1,0 +1,296 @@
+\documentclass[10pt,a4paper]{article}
+
+\usepackage{amssymb,amsmath}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{xcolor}
+\usepackage{mdwlist}
+\usepackage{enumitem}
+
+\floatname{algorithm}{Алгоритм}
+
+\newtheorem{theorem}{Теорема}
+\newtheorem{mydef}{Определение}
+\newtheorem{statement}{Утверждение}
+\newtheorem*{consequence}{Следствие}
+
+\def \eval #1#2{\left.#1\right\vert_{#2}}
+\def \<#1> {\langle #1 \rangle}
+\def \n #1{\mathit{#1}}
+
+\title{Аналитическая проверка логических ограничений}
+
+\begin{document}
+\maketitle
+
+\section{Логические операции над предикатами}
+Для проверки условий теорем необходимо уметь сравнивать логические формулы, не прибегая к запросам
+на сервер. Для этого в свою очередь нам понадобится вычислять значение логических операций $\vee,
+\&, \neg$ над предикатами $T_j, j=1, \dots, n$, из которых состоят логические формулы. Рассмотрим
+возможные значения предикатов и эквивалентности, применимые к ним.
+
+\subsection{Преобразование $\vee,\&$ для простых предикатов}
+\begin{enumerate}
+\item $ \n{Expr}_1\ \theta\ \n{Expr}_2\ $, $(\theta \in \{=, \neq, >, <, \leq, \geq\})$\\
+Данный тип операций определяет простейшие арифметические операции равенства и неравенства. Сравнение
+таких предикатов сводится к применению элементарных правил решения неравенств:
+\begin{enumerate}[label=\Roman*]
+  \item Строгое равенство ($=$)
+  \begin{enumerate}[label=\arabic*:]
+    \item $T_1 = (R_i.A_j = a),\ a \in Dom(R_i.A_j)$
+    \item $T_2 = (R_i.A_j = b),\ b \in Dom(R_i.A_j)$
+  \end{enumerate}
+  Если $a = b$:  
+  \begin{itemize}
+    \item $T_1 \vee T_2 = T_1\ \&\ T_2 = (R_i.A_j = a)$
+  \end{itemize}
+  Если $a \neq b$:
+  \begin{itemize}
+    \item $T_1 \vee T_2 = (R_i.A_j = a) \vee (R_i.A_j = b)$
+    \item $T_1\ \&\ T_2 = \n{FALSE}$
+  \end{itemize}
+
+  \item Строгое неравенство ($\neq$)
+  \begin{enumerate}[label=\arabic*:]
+    \item $T_1 = (R_i.A_j \neq a),\ a \in Dom(R_i.A_j)$
+    \item $T_2 = (R_i.A_j \neq b),\ b \in Dom(R_i.A_j)$
+  \end{enumerate}
+  Если $a = b$:
+  \begin{itemize}
+    \item $T_1 \vee T_2 = T_1\ \&\ T_2 = (R_i.A_j \neq a)$
+  \end{itemize}
+  Если $a \neq b$:
+  \begin{itemize}
+    \item $T_1 \vee T_2 = (R_i.A_j \neq a) \vee (R_i.A_j \neq b)$
+    \item $T_1\ \&\ T_2 = (R_i.A_j \neq a)\ \&\ (R_i.A_j \neq b)$
+  \end{itemize}
+
+  \item Совпадающие знаки сравнения ($\geq$)
+  \begin{enumerate}[label=\arabic*:]
+    \item $T_1 = (R_i.A_j \geq a),\ a \in Dom(R_i.A_j)$
+    \item $T_2 = (R_i.A_j \geq b),\ b \in Dom(R_i.A_j)$
+  \end{enumerate}
+  Если $a \le b$:
+  \begin{itemize}
+    \item $T_1 \vee T_2 = (R_i.A_j \geq a)$
+    \item $T_1\ \&\ T_2 = (R_i.A_j \geq b)$
+  \end{itemize}
+  Если $a > b$: $a$ и $b$ меняются местами:
+  \begin{itemize}
+    \item $T_1 \vee T_2 = (R_i.A_j \geq b)$
+    \item $T_1\ \&\ T_2 = (R_i.A_j \geq a)$
+  \end{itemize}
+
+  \item Противоположные знаки сравнения ($\geq, \leq$)
+  \begin{enumerate}[label=\arabic*:]
+    \item $T_1 = (R_i.A_j \geq a),\ a \in Dom(R_i.A_j)$
+    \item $T_2 = (R_i.A_j \leq b),\ b \in Dom(R_i.A_j)$
+  \end{enumerate}
+  Если $a \le b$:
+  \begin{itemize}
+    \item $T_1 \vee T_2 = \n{TRUE}$
+    \item $T_1\ \&\ T_2 = (a \leq R_i.A_j \leq b)$
+  \end{itemize}
+
+  Если $a > b$:
+  \begin{itemize}
+    \item $T_1 = (R_i.A_j \geq a) \vee (R_i.A_j \leq b),\ a, b \in Dom(R_i.A_j)$
+    \item $T_1\ \&\ T_2 = \n{FALSE}$
+  \end{itemize}
+
+  Операции $>, <$ рассматриваются аналогично.
+\end{enumerate}
+Взаимодействие различных операций ($=$ с $>$, $\neq$ с $<$, $<$ с $\geq$ и пр.) при дизъюнкции,
+конъюкнкции соответствующих предикатов осуществляется аналогично.
+
+
+\item $\n{Expr}_1\ \n{[NOT]}\ \n{BETWEEN}\ \n{Expr}_2\ \n{AND}\ \n{Expr}_3$\\
+Эта и дальнейшие операции (кроме $\n{LIKE}$) сводятся к операциям первого типа:
+\begin{enumerate}[label=\Roman*]
+  \item $\n{Expr}_1\ \n{BETWEEN}\ \n{Expr}_2\ \n{AND}\ \n{Expr}_3$\\
+  $T = (\n{R_i.A_j}\ \n{BETWEEN}\ a\ \n{AND}\ b),\ a, b \in Dom(R_i.A_j)$
+  Эквивалентное представление данной операции: $T = (a \leq \n{R_i.A_j} \leq b)$
+  \item $\n{Expr}_1\ \n{NOT}\ \n{BETWEEN}\ \n{Expr}_2\ \n{AND}\ \n{Expr}_3$\\
+  $T = (\n{R_i.A_j}\ \n{NOT}\ \n{BETWEEN}\ a\ \n{AND}\ b),\ a, b \in Dom(R_i.A_j)$
+  Эквивалентное представление данной операции: $T = (\n{R_i.A_j} \leq a \vee \n{R_i.A_j} \geq b)$
+\end{enumerate}
+
+
+\item $\n{Expr}\ \n{[NOT]}\ \n{LIKE}\ \n{Str}$,\\ $\n{Expr}$ -- атрибут строкового типа данных,
+$\n{Str}$ -- строка особого типа, содержащая управляющие символы языка SQL. К ним относятся:
+\begin{itemize}
+  \item '\%' Данный символ совпадает при сравнении с любым количеством любых символов строки
+  \item '\_' Данный символ совпадает при сравнении с одним любым символом строки
+\end{itemize}
+
+Различные диалекты языка SQL от разных производителей СУБД дополняют этот список другими
+управляющими конструкциями, так что он может отличаться в зависимости от реализации. Но так или
+иначе сравнение предикатов такого вида имеет схожую схему. По сути данная операция представляет из
+себя упрощенное регулярное выражение. Проведение таких операций, как дизъюнкция, конъюнкция и
+отрицание, осуществляется точно также как для регулярных выражений.
+
+
+\item \label{itm:IN_S} $\n{Expr}\ \n{[NOT]}\ \n{IN}\ S$, где $S$ - список значений или подзапрос,
+результат которого - это множество значений атрибута $R_i.A_j$.
+\begin{enumerate}[label=\Roman*]
+  \item $\n{Expr}\ \n{IN}\ S$\\
+  Если $S$ - это список заранее заданных значений:\\
+  $T = (\n{R_i.A_j}\ \n{IN}\ \{s_1, s_2, \dots, s_l \}),\ s_k \in Dom(R_i.A_j), k = 1, \dots, l$\\
+  Эквивалентное представление: $T = (\bigvee\limits_{k=1}^{l} \n{R_i.A_j} = s_k)$\\
+  Если $S$ - это подзапрос:\\
+  $T = (\n{R_i.A_j}\ \n{IN}\ \pi_{R_i.A_j} (\sigma_F (R_1 \Join \dots \Join R_n)))$\\
+  \item $\n{Expr}\ \n{NOT}\ \n{IN}\ S$\\
+  Если $S$ - это список заранее заданных значений:\\
+  $T = (\n{R_i.A_j}\ \n{NOT}\ \n{IN}\ \{s_1, s_2, \dots, s_l \}),\ s_k \in Dom(R_i.A_j), k = 1,
+  \dots, l$\\
+  Эквивалентное представление: $T = (\bigwedge\limits_{k=1}^{l} \n{R_i.A_j} \ne s_k)$\\
+  Если $S$ - это подзапрос:\\
+  $T = (\n{R_i.A_j}\ \n{IN}\ \pi_{R_i.A_j} (\sigma_F (R_1 \Join \dots \Join R_n)))$\\
+\end{enumerate}
+
+
+\item \label{itm:ALL/ANY_S} $\n{Expr}\ \theta\ \n{ALL/ANY}\ S$.\\
+Данная операция является обобщением операций первого типа и сводится к нему в случае простого списка
+значений.
+\begin{enumerate}[label=\Roman*]
+  \item $\n{Expr}\ \theta\ \n{ALL}\ S$\\ Если $S$ - это список заранее заданных значений:\\
+  $T = (\n{R_i.A_j}\ \theta\ \n{ALL}\ \{s_1, s_2, \dots, s_l \}),\ s_k \in Dom(R_i.A_j), k = 1,
+  \dots, l$\\  
+  Эквивалентное представление:\\
+  $T = (\n{R_i.A_j}\ \theta\ s_1\ \&\ \n{R_i.A_j}\ \theta\ s_2\ \&\ \dots \&\ \n{R_i.A_j}\ \theta\
+  s_k)$\\
+  Если $S$ - это подзапрос:\\
+  $T = (\n{R_i.A_j}\ \theta\ \n{ALL}\ \pi_{R_i.A_j} (\sigma_F (R_1 \Join \dots \Join R_n)))$\\
+  \item $\n{Expr}\ \theta\ \n{ANY}\ S$\\
+  $T = (\n{R_i.A_j}\ \theta\ \n{ANY}\ \{s_1, s_2, \dots, s_l \}),\ s_k \in Dom(R_i.A_j), k = 1,
+  \dots, l$\\  
+  Эквивалентное представление:\\
+  $T = (\n{R_i.A_j}\ \theta\ s_1\ \vee\ \n{R_i.A_j}\ \theta\ s_2\ \vee\ \dots \vee\ \n{R_i.A_j}\
+  \theta\ s_k)$\\
+  Если $S$ - это подзапрос:\\
+  $T = (\n{R_i.A_j}\ \theta\ \n{ANY}\ \pi_{R_i.A_j} (\sigma_F (R_1 \Join \dots \Join R_n)))$\\
+\end{enumerate}
+\end{enumerate}
+
+\subsection{Преобразование $\vee,\&$ для предикатов, содержащих подзапросы}
+Если в операциях \ref{itm:IN_S} и \ref{itm:ALL/ANY_S} типа встречается подзапрос,
+аналитическое сравнение таких предикатов возможно только в некоторых частных случаях. Дело в том,
+что нельзя заранее определить область истинности таких предикатов, так как она зависит от реализации
+базы данных. Использование же информации о БД противоречит аналитическому подходу. Рассмотрим
+условия, при которых все-таки возможно их сравнивать аналитически.
+
+Пусть подзапросы имеют следующий вид:
+$$S_1 = \pi_{R_i.A_j} (\sigma_{F_1} (R_1^1 \Join \dots \Join R_l^1))$$
+$$S_2 = \pi_{R_i.A_j} (\sigma_{F_2} (R_1^2 \Join \dots \Join R_k^2))$$
+
+$S_1$ и $S_2$ являются множествами и, следовательно, могут быть следующие ситуации:
+\begin{enumerate}
+  \item $S_1 \cap S_2 = \emptyset $\\
+  Определить, что подзапросы точно не пересекаются, аналитически можно, если $M(F_1) \cap M(F_2) =
+  \emptyset$. В данном случае наблюдаются следующие эквивалентности:
+  \begin{enumerate}
+    \item $(\n{R_i.A_j}\ \n{IN}\ S_1)\ \&\ (\n{R_i.A_j}\ \n{IN}\ S_2) \equiv \n{FALSE}$
+    \item $(\n{R_i.A_j}\ = \n{ALL}\ S_1)\ \&\ (\n{R_i.A_j}\ = \n{ALL}\ S_2) \equiv \n{FALSE}$
+  \end{enumerate}
+  \item $S_1 \cap S_2 \neq \emptyset $\\
+  В общем случае нет возможности установить какие-либо эквивалентные преобразования операций.
+  Однако рассмотрим частный случай $S_1 \subseteq S_2$. Далее приведено достаточное условие такого
+  включения.
+  \begin{statement}
+  $S_1 \subseteq S_2$, если:
+  \begin{enumerate}[label=\arabic*:]
+    \item $\{R_1^1, R_2^1, \dots, R_l^1\} \subseteq \{R_1^2, R_2^2, \dots, R_k^2\}$
+    \item $M(F_2) \subseteq M(F_1)$
+  \end{enumerate}  
+  \label{subquery_subset_condition}
+  \end{statement}
+  Действительно, так как $\{R_1^1, R_2^1, \dots, R_l^1\} \subseteq \{R_1^2, R_2^2, \dots, R_k^2\}$,
+  то $R_1^2 \Join \dots \Join R_k^2 \subseteq R_1^1 \Join \dots \Join R_l^1$. Условие 2 гарантирует,
+  что $\sigma_{F_2} (R_1^2 \Join \dots \Join R_k^2) \subseteq \sigma_{F_1} (R_1^1 \Join \dots \Join
+  R_l^1)$
+
+  В случае выполнения данного включения следующим образом упрощаются все упомянутые операции:
+
+  \begin{enumerate}
+    \item $(\n{R_i.A_j}\ \n{IN}\ S_1) \vee (\n{R_i.A_j}\ \n{IN}\ S_2) = (\n{R_i.A_j}\ \n{IN}\ S_1)$
+    \item $(\n{R_i.A_j}\ \theta\ \n{ALL}\ S_1)\ \vee (\n{R_i.A_j}\ \theta\ \n{ALL}\ S_2) =
+      (\n{R_i.A_j}\ \theta\ \n{ALL}\ S_1)$
+    \item $(\n{R_i.A_j}\ \n{IN}\ S_1)\ \&\ (\n{R_i.A_j}\ \n{IN}\ S_2) = (\n{R_i.A_j}\ \n{IN}\ S_2)$
+    \item $(\n{R_i.A_j}\ \theta\ \n{ALL}\ S_1)\ \&\ (\n{R_i.A_j}\ \theta\ \n{ALL}\ S_2) =
+      (\n{R_i.A_j}\ \theta\ \n{ALL}\ S_2)$
+  \end{enumerate}
+\end{enumerate}
+
+\subsection{Преобразование $\neg$ для всех типов предикатов}
+Логическое отрицание ставит в соответствие противоположный предикат в каждом из случаев.
+\begin{enumerate}
+  \item $ \n{Expr}_1\ \theta\ \n{Expr}_2\ $, $(\theta \in \{=, \neq, >, <, \leq, \geq\})$\\
+  $T = (\n{R_i.A_j}\ \theta\ a)\ \rightarrow \neg T = (\n{R_i.A_j}\ \neg \theta\ a),
+  a \in Dom(R_i.A_j)$
+    \begin{itemize}
+      \item $T = (\n{R_i.A_j} = a) \rightarrow \neg T =  (\n{R_i.A_j}\ \neq a)$
+      \item $T = (\n{R_i.A_j} > a) \rightarrow \neg T =  (\n{R_i.A_j}\ < a)$
+      \item $T = (\n{R_i.A_j} \geq a) \rightarrow \neg T = (\n{R_i.A_j}\ \leq
+      a)$
+    \end{itemize}
+  \item $\n{Expr}_1\ \n{[NOT]}\ \n{BETWEEN}\ \n{Expr}_2\ \n{AND}\ \n{Expr}_3$\\
+  $T = (\n{R_i.A_j}\ \n{BETWEEN}\ a\ \n{AND}\ b),\ a, b \in Dom(R_i.A_j) \rightarrow$\\
+  $\rightarrow \neg T = (\n{R_i.A_j}\ \n{NOT}\ \n{BETWEEN}\ a\ \n{AND}\ b)$
+  \item $\n{Expr}\ \n{[NOT]}\ \n{LIKE}\ \n{Str}$\\
+  $T = (\n{R_i.A_j}\ \n{LIKE}\ \n{Str}) \rightarrow \neg T = (\n{R_i.A_j}\ \n{NOT}\ \n{LIKE}\
+  \n{Str})$
+  \item $\n{Expr}\ \n{[NOT]}\ \n{IN}\ S$\\
+  $T = (\n{R_i.A_j}\ \n{IN}\ S)\ \rightarrow \neg T = (\n{R_i.A_j}\ \n{NOT}\ \n{IN}\ S)$
+  \item $\n{Expr}\ \theta\ \n{ALL/ANY}\ S$\\
+  $T = (\n{R_i.A_j}\ \theta\ \n{ALL}\ S)\ \rightarrow \neg T = (\n{R_i.A_j}\ \neg \theta\ \n{ANY}\ S
+  )$
+\end{enumerate}
+
+
+\section{Сравнение областей истинности логических ограничений}
+Здесь и далее будем для определенности рассматривать только случай нескольких промежуточных
+представлений как более общий.
+
+Для выполнения условий всех изложенных теорем требуется установить включение области истинности
+формулы пользовательского запроса $M(F^{\ast})$ в область истинности формул одного или нескольких
+промежуточных представлений: $M(F_1), M(F_2), \dots, M(F_n)$, или $M(F^{\ast}) \subseteq M(F_{v}),
+v = 1,\dots, n = $. Данное условие может принимать значения $TRUE$ или $FALSE$ и само является
+логической формулой. Эта формула, обозначим её $F'$, определяется следующим предикатом: $M(F') =
+M(F^{\ast}) \subseteq M(F_1)\ \&\ M(F^{\ast}) \subseteq M(F_2)\ \&\ \dots\ \&\ M(F^{\ast})
+\subseteq M(F_n) = M(F^{\ast}) \subseteq M(F_1\ \&\ F_2\ \&\ \dots\ \&\ F_n) = M(F^{\ast}
+\rightarrow F_1\ \&\ F_2\ \&\ \dots\ \&\ F_n) = 
+M(F_1\ \&\ F_2\ \&\ \dots\ \&\ F_n \vee \neg F^{\ast})$. Таким образом, $F' = F_1\ \&\ F_2\ \&\
+\dots\ \&\ F_n \vee \neg F^{\ast}$. Для проверки условия c) теорем необходимо проверить выполнение
+эквивалентного условия $F' \equiv \n{TRUE}$, что означает истинность формулы $F'(a) \forall a \in
+\mathcal{A}$.
+
+Практическая проверка данного условия аналитическим способом возможна путем упрощения формулы $F'$
+при помощи правил, изложенных в предыдущем пункте.
+
+
+\section{Аналитическое сравнение областей истинности и определение недостающих данных}
+Далее приводится схема алгоритма аналитической проверки логических ограничений и определения
+недостающих в кэше данных.
+
+Пусть сохраненные на пользовательской машине данные определены $P = \{P_1,
+\dots, P_n\}$, целевой запрос обозначим $P^{\ast}$. Пусть также выполены условия а) и б) Теоремы 3.
+
+\begin{enumerate}[label=\bfseries Шаг \arabic*:]
+  \item Проверка условия $M(F^{\ast}) \cap (M(F_1) \cup M(F_1) \cup \dots \cup M(F_n)) = \emptyset $
+  . Если выполнено, делаем запрос к БД, кэш в данном случае бесполезен. Иначе переходим на
+  следующий шаг.
+  \item Проверка условия $M(F^{\ast}) \subseteq (M(F_1) \cup M(F_1) \cup \dots \cup M(F_n))$. Если
+  выполнено, можно применять результаты, полученные в теоремах 3, 4. Иначе переходим
+  на следующий шаг.
+  \item Вычисляем недостающие данные: $P_{n + 1} = \pi_{X^{\ast}} (\sigma_{F_{n + 1}} (R_1 \Join
+  \dots \Join R_l))$, $F_{n + 1} = F^{\ast} \setminus (F_1 \vee F_1 \vee \dots \vee F_n) =
+  F^{\ast} \&\ \neg(F_1 \vee F_1 \vee \dots \vee F_n) $. По построению условие $M(F^{\ast})
+  \subseteq (M(F_1) \cup M(F_1) \cup \dots \cup M(F_n) \cup M(F_{n + 1}))$ теперь выполнено, и мы
+  можем применять результаты теорем 3, 4 для $P = \{P_1, \dots, P_n, P_{n + 1}\}$, $P^{\ast}$.
+\end{enumerate}
+
+\end{document}
