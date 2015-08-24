@@ -12,7 +12,7 @@
 \usepackage{enumitem}
 \usepackage{pgfplots}
 
-\pgfplotsset{compat=1.3}
+\pgfplotsset{compat=1.12}
 
 \floatname{algorithm}{Алгоритм}
 
@@ -58,20 +58,29 @@ SQL.
 
 \section*{Введение}
 \label{sec-intro}
-Данная работа развивает и объясняет идеи, описанные в статье \cite{mosin_zykin}, представляя подходы к аналитическому сравнению логических формул, используемых в универсальных реляционных запросах (см. определение далее).
+Данная работа развивает и объясняет идеи, описанные в статье \cite{mosin_zykin}, представляя подходы
+к аналитическому сравнению логических формул, используемых в универсальных реляционных запросах (см.
+определение далее).
 
-Основным инструментом работы с логическими формулами является аппарат математической логики, конкретно,
-логики первого порядка, или логики предикатов \cite{hilbert, mendelson, church}. Данная работа не ставит
-целью получение новых результатов в области математической логики, а лишь использует имеющуюся теорию в
+Раздел~\ref{sec-overview} посвящен обзору публикаций на схожие темы: использование кэша при работе с различными видами баз и хранилищ данных, логика предикатов и её применение в сфере баз данных. В разделе~\ref{sec-problem} описывается формализованная постановка задачи. Секция~\ref{sec-logicak_operations} является основной, так как представляет подходы к аналитическому сравнению простейших операций языка SQL, из которых строятся все логические формулы. В следующем разделе,~\ref{sec-comparison}, выводятся основные эквивалентности, используемые при определении возможности использования кэша. Заключительный раздел~\ref{sec-algorithm} объединяет полученные результаты в виде схемы алгоритма использования кэша в ходе исполнения запросов к реляционной базе данных. В разделе~\nameref{sec-conclusion} сделано обобщение полученных результатов и приведены дальнейшие направления исследований.
+
+\section{Обзор существующих работ}
+\label{sec-overview}
+В области теоретических исследований ситуация складывается следующим образом. Огромное число публикаций посвящено проблеме построения оптимального плана запроса на основе формальных правил, в которых не используются области определения предикатов в SQL-операторах (логическая оптимизация) либо эти области учитываются при вычислении статистических оценок для оптимизации физического доступа к базе данных. Близкими по методам решения являются задачи выполнения запросов на потоках данных \cite{olston, denny}, однако различные, по сравнению с настоящей работой, цели приводят к различным результатам. Наиболее близка к рассматриваемой проблеме работа \cite{afrati}. В ней рассматриваются конъюнктивные запросы над доменами данных с предикатами в виде арифметических сравнений и представлены алгоритмы вычисления запросов с использованием существующих представлений. В настоящей работе рассматривается специальный вид универсального реляционного запроса над отношениями базы данных, а не над отдельными доменами. Хотя цели в обеих работах совпадают, результаты различны по указанной причине. В частности, в настоящей работе нет необходимости разрабатывать алгоритмы выборки данных из промежуточных представлений, так как их замещает реляционная алгебра.
+
+Существует ряд работ, в которых рассматривается проблема оптимизации запросов к многомерным хранилищам данных с использованием динамически формируемых представлений. При этом существуют два основных подхода для резервирования результатов запросов: статический \cite{baralis, gupta97, gupta99} и динамический \cite{scheuermann, shim, kalnis, chang}. Первый базируется на использовании набора фиксированных запросов, во втором же предполагается динамический выбор результатов запросов  для резервирования на основе статистики появления а также вычислительной стоимости выполнения запросов. В качестве источника данных используются хранилища данных, либо реляционная база данных, преобразованная к иерархическому виду. При этом, рассматриваются специальные запросы манипулирования многомерными данными.  В этой статье рассматривается технология раздельного формирования размерностей представления данных, необходимого для текущего анализа. Поэтому интерес представляют стандартные SQL запросы к базе данных и промежуточным представлениям.  Результирующее представление может быть затем обработано специальными запросами манипулирования многомерными данными.
+
+В работе \cite{keller} решается задача анализа содержимого кэша, при этом промежуточным представлениям в кэше ставятся в соответствие предикаты. Проблема использования представлений решается за счет выводимости предикатов. В данной работе проблему использования промежуточных представлений предлагается решать посредством вычисления областей определения (доменов) результатов выполнения запросов, находящихся в кэше, соответствующих промежуточным представлениям. Это дает возможность определить кортежи, которые можно использовать в зарезервированных представлениях при формировании нового представления, и на основе вычисления областей определения сформировать SQL команды, которые позволят загрузить недостающие данные с сервера базы данных.
+
+Основным инструментом работы с логическими формулами в нашей статье является аппарат математической логики, конкретно, логики первого порядка, или логики предикатов \cite{hilbert, mendelson, church}. Данная работа не ставит
+целью получение новых результатов в области математической логики, а лишь использует имеющиеся результаты в
 применении к логическим ограничениям языка SQL, расширяя таким образом возможности анализа пользовательских
 запросов по сравнению с классическими подходами СУБД, где нет возможности частичного или комбинированного
 использования закэшированных запросов.
 
-В книге \cite{date} подробно описано то, как логика предикатов используется в языке SQL в виде реляционного исчисления (relational calculus), а также приведены основные эквивалентности логических предикатов, используемые в данной статье.
-
-
-В разделе~\ref{sec-problem} описывается формализованная постановка задачи. Секция~\ref{sec-logicak_operations} является основной, так как представляет подходы к аналитическому сравнению простейших операций языка SQL, из которых строятся все логические формулы. В следующем разделе,~\ref{sec-comparison}, выводятся основные эквивалентности, используемые при определении возможности использования кэша. Заключительный раздел~\ref{sec-algorithm} объединяет полученные результаты в виде схемы алгоритма использования кэша в ходе исполнения запросов к реляционной базе данных. В разделе~\nameref{sec-conclusion} сделано обобщение полученных результатов и приведены дальнейшие направления исследований.
-
+В книге \cite{date} подробно описано то, как логика предикатов используется в языке SQL в виде
+реляционного исчисления (relational calculus), а также приведены основные эквивалентности логических
+предикатов, используемые в данной статье.
 
 \section{Постановка задачи}
 \label{sec-problem}
@@ -128,12 +137,14 @@ $R_i$):
 специфицированы расширенные имена атрибутов, предикат $\n{NULL}$ используется
 в данной работе для другой цели.
 
-В статье \cite{mosin_zykin} приведен алгоритм преобразования логических формул, которое позволяет избежать получения значения $\n{UNKNOWN}$ в результате вычисления значений формул. Далее будем предполагать, что все формулы $F$ являются преобразованными.
+В статье \cite{mosin_zykin} приведен алгоритм преобразования логических формул, которое позволяет
+избежать получения значения $\n{UNKNOWN}$ в результате вычисления значений формул. Далее будем
+предполагать, что все формулы $F$ являются преобразованными.
 
 Введем в рассмотрение множество $\mathcal{A} =$ $\{(a_1, \dots, a_n)
-\mid a_i \in Dom(A_i), i=1,\dots,n\}$, где $Dom(A_i)$ - множество всех допустимых значений атрибута $A_i$.
-Декартово произведение $Dom(A_1)\times Dom(A_2)\times \dots \times Dom(A_n)$ - $n$-мерное пространство
-значений всех атрибутов базы данных.
+\mid a_i \in Dom(A_i), i=1,\dots,n\}$, где $Dom(A_i)$ - множество всех допустимых значений атрибута
+$A_i$. Декартово произведение $Dom(A_1)\times Dom(A_2)\times \dots \times Dom(A_n)$ - $n$-мерное
+пространство значений всех атрибутов базы данных.
 
 \begin{mydef}
 	Областью истинности логической формулы $F$, заданной (\ref{def_F_1}),
@@ -159,7 +170,8 @@ $F$, заданной своей ДНФ, является объединение
 	\label{projection}
 \end{mydef}
 
-Основные теоретические результаты, позволяющие судить о возможности использования кэша при выполнении запросов:
+Основные теоретические результаты, позволяющие судить о возможности использования кэша при
+выполнении запросов:
 \begin{theorem}
 	$P^{\ast} \subseteq \pi_{X^{\ast}} ( \sigma_{F^{\ast}[X]} (P_1 \Join \dots \Join
 	P_n))$, где $X = \bigcupn X_{v}$ если:
@@ -667,32 +679,163 @@ $P_3 = \pi_{X^{\ast}} (\sigma_{F_3} (R_1 \Join R_2 \Join R_3))$,  $F_{3} = F^{\a
 Промежуточные представления имеют ту же структуру данных, что и таблицы соединений, используемые для
 построения гиперкубов. Сохраненные представления данных могут храниться на компьютере пользователя-аналитика и существенно сократить время на формирование данных, необходимых для принятия решений.
 
-
 \begin{biblio}
-%статья
-\bibitem{mosin_zykin}
-Мосин,~С.В. Кэширование запросов к реляционной базе данных с
-использованием областей истинности / С.В.~Мосин, С.В.~Зыкин //
-Моделирование и анализ информационных систем. --- 2015. --- No 2. --- С. 248--258.
-
-%книга
-\bibitem{hilbert}
-Гильберт,~Д. Основы теоретической логики. /
-Д.~Гильберт, В.~Аккерман --- Москва: Изд-во КомКнига, 2010. --- 306~с.
-
-\bibitem{mendelson}
-Мендельсон,~Э. Введение в математическую логику. /
-Э.~Мендельсон --- Москва: Изд-во Наука, 1971. --- 320~с.
-
-
-\bibitem{church}
-Чёрч,~А. Введение в математическую логику. /
-A.~Чёрч --- Москва: Изд-во УРСС, 2009. --- 480~с.
-
-\bibitem{date}
-Date,~C.J. SQL and Relational Theory. Second Edition / C.J.~Date --- O'Reilly, 2012. --- 448 p.
+	\def\selectlanguageifdefined#1{
+		\expandafter\ifx\csname date#1\endcsname\relax
+		\else\selectlanguage{#1}\fi}
+	\providecommand*{\href}[2]{{\small #2}}
+	\providecommand*{\url}[1]{{\small #1}}
+	\providecommand*{\BibUrl}[1]{\url{#1}}
+	\providecommand{\BibAnnote}[1]{}
+	\providecommand*{\BibEmph}[1]{#1}
+	
+	\bibitem{afrati}
+	\selectlanguageifdefined{english}
+	\BibEmph{Afrati,~Foto~N.} Rewriting queries using views in the presence of
+	arithmetic comparisons. [Text]~/ Foto~N.~Afrati, Chen~Li, Prasenjit~Mitra~//
+	\BibEmph{Theor. Comput. Sci.} ---
+	\newblock 2006. ---
+	\newblock Vol. 368, no. 1-2. ---
+	\newblock P.~88--123.
+	
+	\bibitem{baralis}
+	\selectlanguageifdefined{english}
+	\BibEmph{Baralis,~Elena}. Materialized Views Selection in a Multidimensional
+	Database [Text]~/ Elena~Baralis, Stefano~Paraboschi, Ernest~Teniente~//
+	Proceedings of the 23rd International Conference on Very Large Data Bases.
+	---
+	\newblock VLDB '97. ---
+	\newblock San Francisco, CA, USA~: Morgan Kaufmann Publishers Inc., 1997. ---
+	\newblock P.~156--165. ---
+	\newblock URL: \BibUrl{http://dl.acm.org/citation.cfm?id=645923.671019}.
+	
+	\bibitem{church}
+	\selectlanguageifdefined{english}
+	\BibEmph{Church,~Alonzo}. Introduction to Mathematical Logic [Text]~/
+	Alonzo~Church. ---
+	\newblock [S.\ l.]~: Princeton University Press, 1996. ---
+	\newblock 378~p.
+	
+	\bibitem{date}
+	\selectlanguageifdefined{english}
+	\BibEmph{Date,~Christopher~J.} SQL and Relational Theory [Text]~/
+	Christopher~J.~Date. ---
+	\newblock [S.\ l.]~: O'Reilly, 2009. ---
+	\newblock 448~p.
+	
+	\bibitem{denny}
+	\selectlanguageifdefined{english}
+	\BibEmph{Denny,~Matthew}.
+	\href{http://dx.doi.org/10.1145/1066157.1066231}{Predicate Result Range
+		Caching for Continuous Queries} [Text]~/ Matthew~Denny,
+	Michael~J.~Franklin~// Proceedings of the 2005 ACM SIGMOD International
+	Conference on Management of Data. ---
+	\newblock SIGMOD '05. ---
+	\newblock New York, NY, USA~: ACM, 2005. ---
+	\newblock P.~646--657. ---
+	\newblock URL: \BibUrl{http://doi.acm.org/10.1145/1066157.1066231}.
+	
+	\bibitem{gupta97}
+	\selectlanguageifdefined{english}
+	\BibEmph{Gupta,~Himanshu}. Selection of Views to Materialize in a Data
+	Warehouse [Text]~/ Himanshu~Gupta~// Proceedings of the 6th International
+	Conference on Database Theory. ---
+	\newblock ICDT '97. ---
+	\newblock London, UK, UK~: Springer-Verlag, 1997. ---
+	\newblock P.~98--112. ---
+	\newblock URL: \BibUrl{http://dl.acm.org/citation.cfm?id=645502.656089}.
+	
+	\bibitem{gupta99}
+	\selectlanguageifdefined{english}
+	\BibEmph{Gupta,~Himanshu}. Selection of Views to Materialize Under a
+	Maintenance Cost Constraint [Text]~/ Himanshu~Gupta, Inderpal~Singh~Mumick~//
+	Proceedings of the 7th International Conference on Database Theory. ---
+	\newblock ICDT '99. ---
+	\newblock London, UK, UK~: Springer-Verlag, 1999. ---
+	\newblock P.~453--470. ---
+	\newblock URL: \BibUrl{http://dl.acm.org/citation.cfm?id=645503.656261}.
+	
+	\bibitem{hilbert}
+	\selectlanguageifdefined{english}
+	\BibEmph{Hilbert,~David}. Principles of Mathematical Logic [Text]~/
+	David~Hilbert, Wilhelm~Ackermann. ---
+	\newblock [S.\ l.]~: AMS Chelsea Publishing, 1950. ---
+	\newblock 172~p.
+	
+	\bibitem{kalnis}
+	\selectlanguageifdefined{english}
+	\BibEmph{Kalnis,~Panos}. Proxy-Server Architectures for OLAP. [Text]~/
+	Panos~Kalnis, Dimitris~Papadias~// SIGMOD Conference~/ Ed.\ by\
+	Sharad~Mehrotra, Timos~K.~Sellis. ---
+	\newblock [S.\ l.]~: ACM, 2001. ---
+	\newblock P.~367--378.
+	
+	\bibitem{keller}
+	\selectlanguageifdefined{english}
+	\BibEmph{Keller,~Arthur~M.} A Predicate-based Caching Scheme for Client-Server
+	Database Architectures [Text]~/ Arthur~M.~Keller, Julie~Basu~// \BibEmph{VLDB
+		J.} ---
+	\newblock 1996. ---
+	\newblock Vol.~5, no.~1. ---
+	\newblock P.~35--47.
+	
+	\bibitem{mendelson}
+	\selectlanguageifdefined{english}
+	\BibEmph{Mendelson,~Elliott}. Introduction to Mathematical Logic [Text]~/
+	Elliott~Mendelson. ---
+	\newblock 5 edition. ---
+	\newblock [S.\ l.]~: CRC Press, 2009. ---
+	\newblock 469~p.
+	
+	\bibitem{mosin_zykin}
+	\selectlanguageifdefined{english}
+	\BibEmph{Mosin,~Sergey}. Truth space method for caching database queries
+	[Text]~/ Sergey~Mosin, Sergey~Zykin~// \BibEmph{Modeling and Analysis of
+		Information Systems}. ---
+	\newblock 2015. ---
+	\newblock Vol.~22, no.~2. ---
+	\newblock P.~248--258.
+	
+	\bibitem{olston}
+	\selectlanguageifdefined{english}
+	\BibEmph{Olston,~Chris}.
+	\href{http://dx.doi.org/10.1145/872757.872825}{Adaptive Filters for
+		Continuous Queries over Distributed Data Streams} [Text]~/ Chris~Olston,
+	Jing~Jiang, Jennifer~Widom~// Proceedings of the 2003 ACM SIGMOD
+	International Conference on Management of Data. ---
+	\newblock SIGMOD '03. ---
+	\newblock New York, NY, USA~: ACM, 2003. ---
+	\newblock P.~563--574. ---
+	\newblock URL: \BibUrl{http://doi.acm.org/10.1145/872757.872825}.
+	
+	\bibitem{chang}
+	\selectlanguageifdefined{english}
+	\BibEmph{Park,~Chang-Sup}. Usability-based caching of query results in OLAP
+	systems. [Text]~/ Chang-Sup~Park, Myoung-Ho~Kim, Yoon-Joon~Lee~//
+	\BibEmph{Journal of Systems and Software}. ---
+	\newblock 2003. ---
+	\newblock Vol.~68, no.~2. ---
+	\newblock P.~103--119.
+	
+	\bibitem{scheuermann}
+	\selectlanguageifdefined{english}
+	\BibEmph{Scheuermann,~Peter}. WATCHMAN: A Data Warehouse Intelligent Cache
+	Manager [Text]~/ Peter~Scheuermann, Junho~Shim, Radek~Vingralek~//
+	Proceedings of the 22th International Conference on Very Large Data Bases.
+	---
+	\newblock VLDB '96. ---
+	\newblock San Francisco, CA, USA~: Morgan Kaufmann Publishers Inc., 1996. ---
+	\newblock P.~51--62. ---
+	\newblock URL: \BibUrl{http://dl.acm.org/citation.cfm?id=645922.758367}.
+	
+	\bibitem{shim}
+	\selectlanguageifdefined{english}
+	\BibEmph{Shim,~Junho}. Dynamic Caching of Query Results for Decision Support
+	Systems. [Text]~/ Junho~Shim, Peter~Scheuermann, Radek~Vingralek~// SSDBM.
+	---
+	\newblock [S.\ l.~: s.\ n.], 1999. ---
+	\newblock P.~254--263.
 \end{biblio}
-
 
 % Сведения об авторах (Ф.И.О.(полностью), степень, звание, кафедра (отдел), вуз, e-mail)
 {Мосин Сергей Владимирович,
@@ -721,24 +864,161 @@ and predicates correspond to SQL operations.
 \end{abstract}
 
 \begin{biblio_lat}
-%\itemsep -2pt
-%статья
-\bibitem{mosin_zykin}
-Mosin~S.V., Zykin~S.V. Truth space method for caching database queries // Modeling and analysis of information
-systems. 2015. Vol.~22, No.~2, P.~248--258
-
-%книга
-\bibitem{hilbert}
-Hilbert~D., Ackermann~W. Principles of Mathematical Logic. AMS Chelsea Publishing, 1950. 172~p.
-
-\bibitem{mendelson}
-Mendelson~E. Introduction to Mathematical Logic, Fifth Edition. CRC Press, 2009. 469~p.
-
-\bibitem{church}
-Church~A. Introduction to Mathematical Logic. Princeton University Press, 1996. 378~p.
-
-\bibitem{date}
-Date~C.J. SQL and Relational Theory. Second Edition. O'Reilly, 2012. 448~p.
+	\def\selectlanguageifdefined#1{
+		\expandafter\ifx\csname date#1\endcsname\relax
+		\else\selectlanguage{#1}\fi}
+	\providecommand*{\href}[2]{{\small #2}}
+	\providecommand*{\url}[1]{{\small #1}}
+	\providecommand*{\BibUrl}[1]{\url{#1}}
+	\providecommand{\BibAnnote}[1]{}
+	\providecommand*{\BibEmph}[1]{#1}
+	
+	\bibitem{afrati}
+	\selectlanguageifdefined{english}
+	\BibEmph{Afrati,~Foto~N.} Rewriting queries using views in the presence of
+	arithmetic comparisons. [Text]~/ Foto~N.~Afrati, Chen~Li, Prasenjit~Mitra~//
+	\BibEmph{Theor. Comput. Sci.} ---
+	\newblock 2006. ---
+	\newblock Vol. 368, no. 1-2. ---
+	\newblock P.~88--123.
+	
+	\bibitem{baralis}
+	\selectlanguageifdefined{english}
+	\BibEmph{Baralis,~Elena}. Materialized Views Selection in a Multidimensional
+	Database [Text]~/ Elena~Baralis, Stefano~Paraboschi, Ernest~Teniente~//
+	Proceedings of the 23rd International Conference on Very Large Data Bases.
+	---
+	\newblock VLDB '97. ---
+	\newblock San Francisco, CA, USA~: Morgan Kaufmann Publishers Inc., 1997. ---
+	\newblock P.~156--165. ---
+	\newblock URL: \BibUrl{http://dl.acm.org/citation.cfm?id=645923.671019}.
+	
+	\bibitem{church}
+	\selectlanguageifdefined{english}
+	\BibEmph{Church,~Alonzo}. Introduction to Mathematical Logic [Text]~/
+	Alonzo~Church. ---
+	\newblock [S.\ l.]~: Princeton University Press, 1996. ---
+	\newblock 378~p.
+	
+	\bibitem{date}
+	\selectlanguageifdefined{english}
+	\BibEmph{Date,~Christopher~J.} SQL and Relational Theory [Text]~/
+	Christopher~J.~Date. ---
+	\newblock [S.\ l.]~: O'Reilly, 2009. ---
+	\newblock 448~p.
+	
+	\bibitem{denny}
+	\selectlanguageifdefined{english}
+	\BibEmph{Denny,~Matthew}.
+	\href{http://dx.doi.org/10.1145/1066157.1066231}{Predicate Result Range
+		Caching for Continuous Queries} [Text]~/ Matthew~Denny,
+	Michael~J.~Franklin~// Proceedings of the 2005 ACM SIGMOD International
+	Conference on Management of Data. ---
+	\newblock SIGMOD '05. ---
+	\newblock New York, NY, USA~: ACM, 2005. ---
+	\newblock P.~646--657. ---
+	\newblock URL: \BibUrl{http://doi.acm.org/10.1145/1066157.1066231}.
+	
+	\bibitem{gupta97}
+	\selectlanguageifdefined{english}
+	\BibEmph{Gupta,~Himanshu}. Selection of Views to Materialize in a Data
+	Warehouse [Text]~/ Himanshu~Gupta~// Proceedings of the 6th International
+	Conference on Database Theory. ---
+	\newblock ICDT '97. ---
+	\newblock London, UK, UK~: Springer-Verlag, 1997. ---
+	\newblock P.~98--112. ---
+	\newblock URL: \BibUrl{http://dl.acm.org/citation.cfm?id=645502.656089}.
+	
+	\bibitem{gupta99}
+	\selectlanguageifdefined{english}
+	\BibEmph{Gupta,~Himanshu}. Selection of Views to Materialize Under a
+	Maintenance Cost Constraint [Text]~/ Himanshu~Gupta, Inderpal~Singh~Mumick~//
+	Proceedings of the 7th International Conference on Database Theory. ---
+	\newblock ICDT '99. ---
+	\newblock London, UK, UK~: Springer-Verlag, 1999. ---
+	\newblock P.~453--470. ---
+	\newblock URL: \BibUrl{http://dl.acm.org/citation.cfm?id=645503.656261}.
+	
+	\bibitem{hilbert}
+	\selectlanguageifdefined{english}
+	\BibEmph{Hilbert,~David}. Principles of Mathematical Logic [Text]~/
+	David~Hilbert, Wilhelm~Ackermann. ---
+	\newblock [S.\ l.]~: AMS Chelsea Publishing, 1950. ---
+	\newblock 172~p.
+	
+	\bibitem{kalnis}
+	\selectlanguageifdefined{english}
+	\BibEmph{Kalnis,~Panos}. Proxy-Server Architectures for OLAP. [Text]~/
+	Panos~Kalnis, Dimitris~Papadias~// SIGMOD Conference~/ Ed.\ by\
+	Sharad~Mehrotra, Timos~K.~Sellis. ---
+	\newblock [S.\ l.]~: ACM, 2001. ---
+	\newblock P.~367--378.
+	
+	\bibitem{keller}
+	\selectlanguageifdefined{english}
+	\BibEmph{Keller,~Arthur~M.} A Predicate-based Caching Scheme for Client-Server
+	Database Architectures [Text]~/ Arthur~M.~Keller, Julie~Basu~// \BibEmph{VLDB
+		J.} ---
+	\newblock 1996. ---
+	\newblock Vol.~5, no.~1. ---
+	\newblock P.~35--47.
+	
+	\bibitem{mendelson}
+	\selectlanguageifdefined{english}
+	\BibEmph{Mendelson,~Elliott}. Introduction to Mathematical Logic [Text]~/
+	Elliott~Mendelson. ---
+	\newblock 5 edition. ---
+	\newblock [S.\ l.]~: CRC Press, 2009. ---
+	\newblock 469~p.
+	
+	\bibitem{mosin_zykin}
+	\selectlanguageifdefined{english}
+	\BibEmph{Mosin,~Sergey}. Truth space method for caching database queries
+	[Text]~/ Sergey~Mosin, Sergey~Zykin~// \BibEmph{Modeling and Analysis of
+		Information Systems}. ---
+	\newblock 2015. ---
+	\newblock Vol.~22, no.~2. ---
+	\newblock P.~248--258.
+	
+	\bibitem{olston}
+	\selectlanguageifdefined{english}
+	\BibEmph{Olston,~Chris}.
+	\href{http://dx.doi.org/10.1145/872757.872825}{Adaptive Filters for
+		Continuous Queries over Distributed Data Streams} [Text]~/ Chris~Olston,
+	Jing~Jiang, Jennifer~Widom~// Proceedings of the 2003 ACM SIGMOD
+	International Conference on Management of Data. ---
+	\newblock SIGMOD '03. ---
+	\newblock New York, NY, USA~: ACM, 2003. ---
+	\newblock P.~563--574. ---
+	\newblock URL: \BibUrl{http://doi.acm.org/10.1145/872757.872825}.
+	
+	\bibitem{chang}
+	\selectlanguageifdefined{english}
+	\BibEmph{Park,~Chang-Sup}. Usability-based caching of query results in OLAP
+	systems. [Text]~/ Chang-Sup~Park, Myoung-Ho~Kim, Yoon-Joon~Lee~//
+	\BibEmph{Journal of Systems and Software}. ---
+	\newblock 2003. ---
+	\newblock Vol.~68, no.~2. ---
+	\newblock P.~103--119.
+	
+	\bibitem{scheuermann}
+	\selectlanguageifdefined{english}
+	\BibEmph{Scheuermann,~Peter}. WATCHMAN: A Data Warehouse Intelligent Cache
+	Manager [Text]~/ Peter~Scheuermann, Junho~Shim, Radek~Vingralek~//
+	Proceedings of the 22th International Conference on Very Large Data Bases.
+	---
+	\newblock VLDB '96. ---
+	\newblock San Francisco, CA, USA~: Morgan Kaufmann Publishers Inc., 1996. ---
+	\newblock P.~51--62. ---
+	\newblock URL: \BibUrl{http://dl.acm.org/citation.cfm?id=645922.758367}.
+	
+	\bibitem{shim}
+	\selectlanguageifdefined{english}
+	\BibEmph{Shim,~Junho}. Dynamic Caching of Query Results for Decision Support
+	Systems. [Text]~/ Junho~Shim, Peter~Scheuermann, Radek~Vingralek~// SSDBM.
+	---
+	\newblock [S.\ l.~: s.\ n.], 1999. ---
+	\newblock P.~254--263.
 \end{biblio_lat}
 
 %\begin{flushright}
